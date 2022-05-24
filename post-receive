@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+if [ $(git rev-parse --is-bare-repository) = true ]; then
+    REPOSITORY_BASENAME=$(basename "$PWD")
+else
+    REPOSITORY_BASENAME=$(basename $(readlink -nf "$PWD"/..))
+fi
+
+REPOSITORY_NAME=${REPOSITORY_BASENAME%.git}
+
+GITDIR="/srv/git"
+WEBDIR="/var/www/html"
+
+FORCE=0
+while read -r old new ref; do
+    HASREVS=$(git rev-list "$old" "^$new" | sed 1q)
+    if test -n "$HASREVS"; then
+        FORCE=1
+        break
+    fi
+done
+
+if test "$FORCE" = "1"; then
+    rm -rf "${WEBDIR}/${REPOSITORY_NAME}"
+fi
+
+cd /var/www/html || exit 1
+
+echo ''
+echo 'generating static pages'
+./generate.sh
+echo ''

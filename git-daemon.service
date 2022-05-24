@@ -1,0 +1,24 @@
+# https://git-scm.com/book/en/v2/Git-on-the-Server-Git-Daemon
+# at: /etc/systemd/system/git-daemon.service
+#
+#   systemctl enable --now git-daemon
+#
+
+[Unit]
+Description=Start Git Daemon
+
+[Service]
+ExecStart=/usr/bin/git daemon --reuseaddr --base-path=/srv/git/ /srv/git/
+
+Restart=always
+RestartSec=500ms
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=git-daemon
+
+User=git
+Group=git
+
+[Install]
+WantedBy=multi-user.target

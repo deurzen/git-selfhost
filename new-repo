@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -Eeo pipefail
+
+DOMAIN="git.mydomain.net"
+OWNER="<owner name>"
+
+if ! [ $# -eq 3 ]; then
+    >&2 echo "invalid number of arguments"
+    echo "new-repo: add a new git repo"
+    echo "usage: new-repo <private|public> <name> <description>"
+    exit 1
+fi
+
+if [[ "$1" == "private" ]]; then
+    PRIVATE=1
+    unset PUBLIC
+elif [[ "$1" == "public" ]]; then
+    PUBLIC=1
+else
+    >&2 echo "invalid first argument: $1"
+    echo "new-repo: add a new git repo"
+    echo "usage: new-repo <private|public> <name> <description>"
+    exit 1
+fi
+shift
+
+NAME="$1"
+shift
+
+DESCRIPTION="$@"
+
+while (( "$#" )); do
+    case "$1" in
+        -h|--help)
+        echo "new-repo: add a new git repo"
+        echo "usage: new-repo <private|public> <name> <description>"
+        exit
+        ;;
+        -*|--*=)
+        >&2 echo "new-repo: invalid option $1"
+        exit 1
+        ;;
+        *)
+        shift
+        ;;
+    esac
+done
+
+sudo su git -s /bin/bash <<EOF
+mkdir /srv/git/${NAME}.git && cd /srv/git/${NAME}.git && git init --bare
+test $PUBLIC && touch /srv/git/${NAME}.git/git-daemon-export-ok
+echo "$DESCRIPTION" >| /srv/git/${NAME}.git/description
+echo "$OWNER" >| /srv/git/${NAME}.git/owner
+echo "git://${DOMAIN}/${NAME}.git" >| /srv/git/${NAME}.git/url
+cp ~/post-receive /srv/git/${NAME}.git/hooks/post-receive
+echo ""
+echo "generating static pages"
+cd /var/www/html && ./generate.sh
+echo ""
+echo "push to: ${DOMAIN}:/srv/git/${NAME}.git"
+echo "config:"
+echo '[remote "self"]'
+echo "	url = self1:/srv/git/${NAME}.git"
+echo '	fetch = +refs/heads/*:refs/remotes/self/*'
+echo ""
+echo "pull from: git@${DOMAIN}/${NAME}.git"
+EOF
